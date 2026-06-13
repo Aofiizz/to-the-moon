@@ -168,15 +168,6 @@ app.post('/api/donations/:id/verify', upload.single('slip'), async (req, res) =>
       
       const form = new FormData();
       form.append('file', fs.createReadStream(slipFile.path), slipFile.originalname);
-      form.append('payload', JSON.stringify({
-        checkCondition: {
-          checkDuplicate: true,
-          checkAmount: {
-            type: "eq",
-            amount: donation.amount.toFixed(2)
-          }
-        }
-      }));
       
       try {
         const response = await axios.post('https://connect.slip2go.com/api/verify-slip/qr-image/info', form, {
@@ -188,12 +179,37 @@ app.post('/api/donations/:id/verify', upload.single('slip'), async (req, res) =>
         
         console.log('Slip2Go Verification Result:', response.data);
         
-        if (response.status === 200 && response.data) {
-          const dataPayload = response.data.data || response.data;
-          transRef = dataPayload.transRef || dataPayload.transactionRef || ('S2G-' + Date.now().toString());
+        if ((response.status === 200 || response.status === 201) && response.data) {
+          const dataPayload = response.data.data;
+          
+          if (!dataPayload || !dataPayload.transRef) {
+            return res.status(400).json({
+              error: 'การตรวจสอบสลิปผิดพลาด: ไม่สามารถถอดรหัสหรืออ่านเลขอ้างอิงจากรูปภาพสลิปได้'
+            });
+          }
+
+          // 1. Check Amount
+          const slipAmount = parseFloat(dataPayload.amount);
+          if (isNaN(slipAmount) || Math.abs(slipAmount - donation.amount) > 0.009) {
+            return res.status(400).json({
+              error: `การตรวจสอบสลิปผิดพลาด: ยอดเงินในสลิปไม่ตรงกับยอดที่ทำรายการ (ในสลิป: ${slipAmount} บาท, ยอดบริจาค: ${donation.amount} บาท)`
+            });
+          }
+
+          // 2. Check Duplicate transactionRef in database
+          const existingDonation = await prisma.donation.findFirst({
+            where: { transactionRef: dataPayload.transRef }
+          });
+          if (existingDonation) {
+            return res.status(400).json({
+              error: 'การตรวจสอบสลิปผิดพลาด: สลิปนี้เคยถูกใช้บริจาคไปแล้ว ไม่สามารถใช้ซ้ำได้'
+            });
+          }
+
+          transRef = dataPayload.transRef;
           console.log(`Slip2Go verified successfully. Remote Ref: ${transRef}`);
         } else {
-          throw new Error('Slip2Go response status is not 200 OK.');
+          throw new Error('Slip2Go response status is not successful.');
         }
       } catch (err: any) {
         console.error('Slip2Go verification failed:', err.response ? err.response.data : err.message);
