@@ -5,6 +5,8 @@ import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import axios from 'axios';
+import FormData from 'form-data';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
@@ -158,21 +160,61 @@ app.post('/api/donations/:id/verify', upload.single('slip'), async (req, res) =>
 
     // --- Slip Verification Logic ---
     const slipUrl = `/uploads/${slipFile.filename}`;
-    const transRef = 'REF-' + Date.now().toString() + Math.floor(Math.random() * 1000).toString();
-
-    // 1. SlipOK Integration (Real Production Setup)
-    if (process.env.SLIPOK_API_KEY) {
+    let transRef = '';
+    
+    // 1. Slip2Go Integration
+    if (process.env.SLIP2GO_API_KEY) {
+      console.log('Slip2Go API Key found. Performing real verification...');
+      
+      const form = new FormData();
+      form.append('file', fs.createReadStream(slipFile.path), slipFile.originalname);
+      form.append('payload', JSON.stringify({
+        checkCondition: {
+          checkDuplicate: true,
+          checkAmount: {
+            type: "eq",
+            amount: donation.amount.toFixed(2)
+          }
+        }
+      }));
+      
+      try {
+        const response = await axios.post('https://connect.slip2go.com/api/verify-slip/qr-image/info', form, {
+          headers: {
+            ...form.getHeaders(),
+            'Authorization': `Bearer ${process.env.SLIP2GO_API_KEY}`
+          }
+        });
+        
+        console.log('Slip2Go Verification Result:', response.data);
+        
+        if (response.status === 200 && response.data) {
+          const dataPayload = response.data.data || response.data;
+          transRef = dataPayload.transRef || dataPayload.transactionRef || ('S2G-' + Date.now().toString());
+          console.log(`Slip2Go verified successfully. Remote Ref: ${transRef}`);
+        } else {
+          throw new Error('Slip2Go response status is not 200 OK.');
+        }
+      } catch (err: any) {
+        console.error('Slip2Go verification failed:', err.response ? err.response.data : err.message);
+        const errMsg = err.response?.data?.message || err.response?.data?.error || err.message;
+        return res.status(400).json({ 
+          error: `การตรวจสอบสลิปผิดพลาด: ${errMsg}` 
+        });
+      }
+    } 
+    // 2. SlipOK Integration (Real Production Setup)
+    else if (process.env.SLIPOK_API_KEY) {
       console.log('SlipOK API Key found. Performing real verification...');
-      // In production, you would upload to SlipOK:
-      // const formData = new FormData();
-      // formData.append('files', fs.createReadStream(slipFile.path));
-      // const response = await axios.post('https://api.slipok.com/api/v1/submerchant/verify', formData, { headers: ... });
-      // Validate response.amount matches donation.amount, and process transactionRef.
+      // Placeholder for SlipOK (could be implemented similarly if needed)
+      transRef = 'SOK-' + Date.now().toString();
     }
-
-    // 2. Simulator Mode (Fallback)
-    // We simulate bank verification delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    // 3. Simulator Mode (Fallback when no API Key is set)
+    else {
+      console.log('No API Keys found. Running in Simulator Mode...');
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      transRef = 'REF-' + Date.now().toString() + Math.floor(Math.random() * 1000).toString();
+    }
 
     // Update donation in Database
     const updatedDonation = await prisma.donation.update({
