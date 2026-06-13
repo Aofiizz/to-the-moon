@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, LogOut, RefreshCw, Landmark, HeartHandshake, ListTodo, Check, X, ShieldAlert } from 'lucide-react';
 
-const BACKEND_URL = 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.hostname}:3001`;
 
 function DashboardPage({ token, setToken, handleLogout }) {
   // Login states

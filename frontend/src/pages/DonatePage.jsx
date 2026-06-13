@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UploadCloud, CheckCircle2, ShieldAlert, Heart, Coins, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-const BACKEND_URL = 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.hostname}:3001`;
 
 const findThaiVoice = (voiceKey, thaiVoices) => {
   if (!voiceKey || voiceKey === 'default' || thaiVoices.length === 0) {

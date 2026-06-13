@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - backend-uploads:/app/uploads
+    # Load configuration from backend/.env if it exists, but don't fail if it doesn't
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      - PORT=3001
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Pass backend URL at build time if provided. If not, it will fallback
+        # dynamically to http://<server-ip>:3001 in the user's browser.
+        - VITE_BACKEND_URL=${VITE_BACKEND_URL:-}
+    ports:
+      - "3000:80"
+    restart: always
+
+volumes:
+  backend-uploads:
