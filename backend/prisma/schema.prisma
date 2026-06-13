@@ -1,0 +1,28 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Donation {
+  id             String   @id @default(uuid())
+  senderName     String
+  message        String?
+  amount         Float
+  paymentMethod  String   // 'PROMPTPAY', 'TRUEWALLET'
+  status         String   @default("PENDING") // 'PENDING', 'SUCCESS', 'FAILED'
+  voiceName      String?
+  transactionRef String?  @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}

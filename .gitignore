@@ -1,0 +1,56 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+web_modules/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+backend/dist/
+frontend/dist/
+
+# Local database files
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+backend/prisma/dev.db-wal
+backend/dev.db
+backend/dev.db-journal
+backend/dev.db-wal
+*.db
+*.db-journal
+*.db-wal
+
+# Local environment and secret files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
+
+# User uploaded slip images
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Local Node environment download (Sandboxed Node)
+bin/
+
+# Logs and debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
